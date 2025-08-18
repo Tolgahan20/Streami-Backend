@@ -1,113 +1,161 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+## Streami Backend (Milestone 1)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 11 + TypeORM + PostgreSQL backend delivering the Foundations milestone:
+- Email/password auth with verification (Resend)
+- JWT access tokens (15m)
+- Opaque refresh tokens (30d, rotation)
+- Global rate limiting and secure cookies
+- Daily cleanup job for expired tokens
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-Streami backend using NestJS 11, TypeORM, PostgreSQL. Milestone 1 includes authentication with email verification, JWT access tokens, and opaque refresh tokens.
+## Tech
+- NestJS 11 (feature-based structure)
+- TypeORM (PostgreSQL); `citext` for case-insensitive email
+- Resend for transactional emails
+- `@nestjs/throttler` for rate limiting
 
 ## Project setup
-
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
-
+## Database setup
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# Local Postgres (macOS/Homebrew example)
+createdb streami
+psql -d streami -c "CREATE EXTENSION IF NOT EXISTS citext;"
 ```
 
-## Run tests
-
+Alternative with dedicated role:
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+psql -d postgres -c "CREATE ROLE streami WITH LOGIN PASSWORD 'streami' SUPERUSER;"
+psql -d postgres -c "CREATE DATABASE streami OWNER streami;"
+psql -d streami -U streami -c "CREATE EXTENSION IF NOT EXISTS citext;"
+# DATABASE_URL=postgresql://streami:streami@localhost:5432/streami
 ```
-
-## Endpoints (Milestone 1)
-
-- POST `/v1/auth/register`
-- GET `/v1/auth/verify-email?token=...`
-- POST `/v1/auth/login`
-- POST `/v1/auth/refresh`
-- POST `/v1/auth/logout`
-- GET `/v1/auth/me`
 
 ## Environment variables
+Create a `.env` in the project root:
+```bash
+# Runtime
+NODE_ENV=development
+PORT=3000
 
+# Database
+DATABASE_URL=postgresql://localhost:5432/streami?user=YOUR_USER
+TYPEORM_LOGGING=false
+
+# Auth
+JWT_ACCESS_SECRET=REPLACE_WITH_LONG_RANDOM_STRING
+REFRESH_TOKEN_PEPPER=REPLACE_WITH_LONG_RANDOM_STRING
+
+# Email (Resend)
+MAIL_FROM=Streami <no-reply@streami.dev>
+RESEND_API_KEY=your_resend_key
+# (optional fallback)
+# MAIL_PROVIDER_API_KEY=
+
+# URLs
+APP_URL=http://localhost:3000
+WEB_URL=http://localhost:5173
 ```
-DATABASE_URL=
-JWT_ACCESS_SECRET=
-REFRESH_TOKEN_PEPPER=
-MAIL_FROM=
-RESEND_API_KEY=
-# (optional fallback) MAIL_PROVIDER_API_KEY=
-WEB_URL=
-APP_URL=
+Generate strong secrets:
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-## Security automations
+## Run
+```bash
+# development
+npm run start:dev
 
+# production build
+npm run build && npm run start:prod
+```
+
+## API Overview (v1)
+Base URL: `http://localhost:3000/v1`
+
+### Auth
+- POST `/auth/register`
+  - Body:
+    ```json
+    { "email": "user@example.com", "password": "P@ssw0rd!", "displayName": "User" }
+    ```
+  - Returns: `201 { "message": "verification_email_sent" }`
+  - Notes: Creates an unverified user and emails a verification link.
+
+- GET `/auth/verify-email?token=...`
+  - Returns: `200 { "message": "email_verified" }`
+  - Notes: Consumes token and marks user as verified.
+
+- POST `/auth/login`
+  - Body:
+    ```json
+    { "email": "user@example.com", "password": "P@ssw0rd!" }
+    ```
+  - Returns:
+    ```json
+    {
+      "accessToken": "...",
+      "user": { "id": "...", "email": "user@example.com", "displayName": "User", "isEmailVerified": true }
+    }
+    ```
+  - Also sets `rt` httpOnly cookie with refresh token (30 days).
+
+- POST `/auth/refresh`
+  - Reads `rt` cookie; returns `200 { "accessToken": "..." }` and rotates the cookie.
+
+- POST `/auth/logout`
+  - Reads `rt` cookie; revokes it and clears the cookie. Returns `200 { "message": "logged_out" }`.
+
+- GET `/auth/me`
+  - Header: `Authorization: Bearer <accessToken>`
+  - Returns: `200 { "id": "...", "email": "...", "role": "USER" }`
+
+### Status
+- GET `/health`
+  - Returns `OK`.
+
+## cURL examples
+```bash
+# Register
+curl -X POST http://localhost:3000/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"P@ssw0rd!","displayName":"You"}'
+
+# Verify (use token from email or console log if no API key)
+curl "http://localhost:3000/v1/auth/verify-email?token=RAW_TOKEN"
+
+# Login
+curl -X POST http://localhost:3000/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"P@ssw0rd!"}'
+
+# Refresh (send cookie from login response)
+curl -X POST http://localhost:3000/v1/auth/refresh \
+  -H 'Cookie: rt=YOUR_REFRESH_COOKIE'
+
+# Logout
+curl -X POST http://localhost:3000/v1/auth/logout \
+  -H 'Cookie: rt=YOUR_REFRESH_COOKIE'
+
+# Me
+curl http://localhost:3000/v1/auth/me \
+  -H 'Authorization: Bearer ACCESS_TOKEN'
+```
+
+## Behaviors & Security
+- Passwords hashed with Argon2id
+- Access JWT (15m) contains `sub`, `email`, and `role`
+- Refresh tokens are opaque random secrets, stored hashed and rotated on refresh
+- Cookies: `httpOnly`, `sameSite=lax`, `secure` in production
+- Rate limits: global 100/min; tighter can be added per-route
+- Daily cleanup job removes expired email and refresh tokens
+
+## Repo automations
 - Dependabot: `.github/dependabot.yml`
-- GitGuardian: `.github/workflows/gitguardian.yml` (set `GITGUARDIAN_API_KEY` repo secret)
+- GitGuardian secrets scanning: `.github/workflows/gitguardian.yml` (requires `GITGUARDIAN_API_KEY`)
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# Streami-Backend
+## Notes
+- Ensure Postgres `citext` extension exists before first run
+- For local dev without Resend key, verification links are logged to console
