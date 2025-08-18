@@ -100,16 +100,16 @@ Base URL: `http://localhost:3000/v1`
       "user": { "id": "...", "email": "user@example.com", "displayName": "User", "isEmailVerified": true }
     }
     ```
-  - Also sets `rt` httpOnly cookie with refresh token (30 days).
+  - Also sets cookies: `rt` (refresh, 30d) and `at` (access, 15m) as httpOnly.
 
 - POST `/auth/refresh`
-  - Reads `rt` cookie; returns `200 { "accessToken": "..." }` and rotates the cookie.
+  - Reads `rt` cookie; returns `200 { "accessToken": "..." }` and sets/rotates both `rt` and `at` cookies.
 
 - POST `/auth/logout`
-  - Reads `rt` cookie; revokes it and clears the cookie. Returns `200 { "message": "logged_out" }`.
+  - Reads `rt` cookie; revokes it and clears both `rt` and `at` cookies. Returns `200 { "message": "logged_out" }`.
 
 - GET `/auth/me`
-  - Header: `Authorization: Bearer <accessToken>`
+  - Header: `Authorization: Bearer <accessToken>` (optional if `at` cookie present in browser)
   - Returns: `200 { "id": "...", "email": "...", "role": "USER" }`
 
 ### Status
@@ -126,20 +126,20 @@ curl -X POST http://localhost:3000/v1/auth/register \
 # Verify (use token from email or console log if no API key)
 curl "http://localhost:3000/v1/auth/verify-email?token=RAW_TOKEN"
 
-# Login
-curl -X POST http://localhost:3000/v1/auth/login \
+# Login (returns access token JSON and sets cookies; use a client that preserves cookies)
+curl -i -X POST http://localhost:3000/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"you@example.com","password":"P@ssw0rd!"}'
 
 # Refresh (send cookie from login response)
-curl -X POST http://localhost:3000/v1/auth/refresh \
+curl -i -X POST http://localhost:3000/v1/auth/refresh \
   -H 'Cookie: rt=YOUR_REFRESH_COOKIE'
 
 # Logout
 curl -X POST http://localhost:3000/v1/auth/logout \
   -H 'Cookie: rt=YOUR_REFRESH_COOKIE'
 
-# Me
+# Me (use Authorization header if not sending cookies)
 curl http://localhost:3000/v1/auth/me \
   -H 'Authorization: Bearer ACCESS_TOKEN'
 ```
@@ -148,8 +148,9 @@ curl http://localhost:3000/v1/auth/me \
 - Passwords hashed with Argon2id
 - Access JWT (15m) contains `sub`, `email`, and `role`
 - Refresh tokens are opaque random secrets, stored hashed and rotated on refresh
-- Cookies: `httpOnly`, `sameSite=lax`, `secure` in production
-- Rate limits: global 100/min; tighter can be added per-route
+- Cookies: `httpOnly`, `sameSite=lax`, `secure` in production; names: `rt` (refresh), `at` (access)
+- CORS: set `origin` to your frontend URL(s) and `credentials: true`
+- If relying on cookies in browsers, add CSRF protection for state-changing routes
 - Daily cleanup job removes expired email and refresh tokens
 
 ## Repo automations

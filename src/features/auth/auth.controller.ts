@@ -26,6 +26,14 @@ const REFRESH_COOKIE_OPTIONS = {
   path: '/',
   maxAge: 1000 * 60 * 60 * 24 * 30,
 };
+const ACCESS_COOKIE = 'at';
+const ACCESS_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 1000 * 60 * 15,
+};
 
 @Controller('auth')
 export class AuthController {
@@ -70,6 +78,7 @@ export class AuthController {
         undefined,
     });
     res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie(ACCESS_COOKIE, accessToken, ACCESS_COOKIE_OPTIONS);
     return {
       accessToken,
       user: {
@@ -96,6 +105,7 @@ export class AuthController {
         undefined,
     });
     res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie(ACCESS_COOKIE, accessToken, ACCESS_COOKIE_OPTIONS);
     return { accessToken };
   }
 
@@ -106,6 +116,7 @@ export class AuthController {
       await this.authService.logout(raw);
     }
     res.clearCookie(REFRESH_COOKIE, { path: '/' });
+    res.clearCookie(ACCESS_COOKIE, { path: '/' });
     return { message: 'logged_out' };
   }
 
