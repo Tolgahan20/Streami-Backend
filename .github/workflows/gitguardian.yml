@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: GitGuardian scan
-        uses: GitGuardian/ggshield/actions/secret@v1.33.0
+        uses: GitGuardian/ggshield/actions/secret@v1.43.0
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
         with:
