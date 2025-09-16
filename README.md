@@ -2,6 +2,7 @@
 
 NestJS 11 + TypeORM + PostgreSQL backend delivering the Foundations milestone:
 - Email/password auth with verification (Resend)
+- Google OAuth authentication (Firebase)
 - JWT access tokens (15m)
 - Opaque refresh tokens (30d, rotation)
 - Global rate limiting and secure cookies
@@ -11,6 +12,7 @@ NestJS 11 + TypeORM + PostgreSQL backend delivering the Foundations milestone:
 - NestJS 11 (feature-based structure)
 - TypeORM (PostgreSQL); `citext` for case-insensitive email
 - Resend for transactional emails
+- Firebase Admin SDK for Google authentication
 - `@nestjs/throttler` for rate limiting
 
 ## Project setup
@@ -53,6 +55,11 @@ MAIL_FROM=Streami <no-reply@streami.dev>
 RESEND_API_KEY=your_resend_key
 # (optional fallback)
 # MAIL_PROVIDER_API_KEY=
+
+# Firebase (Google Auth)
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
 # URLs
 APP_URL=http://localhost:3000
@@ -102,6 +109,21 @@ Base URL: `http://localhost:3000/v1`
     ```
   - Also sets cookies: `rt` (refresh, 30d) and `at` (access, 15m) as httpOnly.
 
+- POST `/auth/google`
+  - Body:
+    ```json
+    { "idToken": "firebase_id_token", "displayName": "User Display Name" }
+    ```
+  - Returns:
+    ```json
+    {
+      "accessToken": "...",
+      "user": { "id": "...", "email": "user@example.com", "displayName": "User Display Name", "isEmailVerified": true, "loginType": "GOOGLE" }
+    }
+    ```
+  - Also sets cookies: `rt` (refresh, 30d) and `at` (access, 15m) as httpOnly.
+  - Notes: Supports both new user creation and existing user linking.
+
 - POST `/auth/refresh`
   - Reads `rt` cookie; returns `200 { "accessToken": "..." }` and sets/rotates both `rt` and `at` cookies.
 
@@ -131,6 +153,11 @@ curl -i -X POST http://localhost:3000/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"you@example.com","password":"P@ssw0rd!"}'
 
+# Google Auth (requires Firebase ID token from frontend)
+curl -i -X POST http://localhost:3000/v1/auth/google \
+  -H 'Content-Type: application/json' \
+  -d '{"idToken":"firebase_id_token","displayName":"User Name"}'
+
 # Refresh (send cookie from login response)
 curl -i -X POST http://localhost:3000/v1/auth/refresh \
   -H 'Cookie: rt=YOUR_REFRESH_COOKIE'
@@ -152,6 +179,17 @@ curl http://localhost:3000/v1/auth/me \
 - CORS: set `origin` to your frontend URL(s) and `credentials: true`
 - If relying on cookies in browsers, add CSRF protection for state-changing routes
 - Daily cleanup job removes expired email and refresh tokens
+- Google authentication verified server-side with Firebase Admin SDK
+- Support for account linking (email users can convert to Google login)
+
+## Google Authentication Setup
+For detailed Google authentication setup instructions, see [GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md).
+
+## Database Migration
+After setting up Firebase, run the migration to add Google authentication support:
+```bash
+psql -d streami -f src/database/migrations/add-google-auth.sql
+```
 
 ## Repo automations
 - Dependabot: `.github/dependabot.yml`
@@ -160,3 +198,4 @@ curl http://localhost:3000/v1/auth/me \
 ## Notes
 - Ensure Postgres `citext` extension exists before first run
 - For local dev without Resend key, verification links are logged to console
+- Google authentication requires Firebase project setup and service account credentials

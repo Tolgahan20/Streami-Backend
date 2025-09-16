@@ -17,8 +17,11 @@ export class User {
   @Column({ type: 'citext', unique: true })
   email!: string;
 
-  @Column({ type: 'text' })
-  passwordHash!: string;
+  @Column({ type: 'varchar', length: 30, unique: true, nullable: true })
+  username?: string;
+
+  @Column({ type: 'text', nullable: true })
+  passwordHash?: string;
 
   @Column({ type: 'text', nullable: true })
   displayName?: string;
@@ -28,6 +31,12 @@ export class User {
 
   @Column({ type: 'text', default: 'USER' })
   role!: 'USER' | 'ADMIN';
+
+  @Column({ type: 'text', default: 'EMAIL' })
+  loginType!: 'EMAIL' | 'GOOGLE';
+
+  @Column({ type: 'text', nullable: true })
+  googleId?: string;
 
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt?: Date;

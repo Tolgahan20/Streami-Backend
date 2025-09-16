@@ -31,6 +31,15 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   NODE_ENV?: string;
+
+  @IsString()
+  FIREBASE_PROJECT_ID!: string;
+
+  @IsString()
+  FIREBASE_CLIENT_EMAIL!: string;
+
+  @IsString()
+  FIREBASE_PRIVATE_KEY!: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

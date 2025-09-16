@@ -15,6 +15,7 @@ import { RefreshToken } from './features/tokens/entities/refresh-token.entity';
 import { AuthFeatureModule } from './features/auth/auth.module';
 import { TokensCleanupJob } from './features/tokens/tokens.cleanup';
 import { MailerModule } from './shared/mailer/mailer.module';
+import { FirebaseModule } from './shared/firebase/firebase.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MailerModule } from './shared/mailer/mailer.module';
     ScheduleModule.forRoot(),
     JwtModule.register({}),
     MailerModule,
+    FirebaseModule,
     AuthFeatureModule,
   ],
   controllers: [AppController],
