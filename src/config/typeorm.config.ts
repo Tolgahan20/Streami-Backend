@@ -9,7 +9,7 @@ export const buildTypeOrmOptions = (): TypeOrmModuleOptions &
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: [User, EmailVerificationToken, RefreshToken],
-  synchronize: process.env.NODE_ENV !== 'production',
+  synchronize: true, // Temporarily enable to create tables
   logging: process.env.TYPEORM_LOGGING === 'true',
   ssl:
     process.env.NODE_ENV === 'production'
