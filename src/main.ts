@@ -11,7 +11,12 @@ async function bootstrap() {
   // CORS configuration for cookie-based auth
   const allowedOrigins =
     process.env.NODE_ENV === 'production'
-      ? [process.env.WEB_URL, process.env.APP_URL].filter(Boolean)
+      ? [
+          process.env.WEB_URL,
+          process.env.APP_URL,
+          'https://streami-frontend.vercel.app',
+          'https://streami-frontend.vercel.app/',
+        ].filter(Boolean)
       : [
           'http://localhost:3000',
           'http://localhost:5173',
