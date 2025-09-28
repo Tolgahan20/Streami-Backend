@@ -194,7 +194,7 @@ export class ProfilesService {
   async getSocialLinks(userId: string): Promise<SocialLink[]> {
     this.logger.log(`Getting social links for user: ${userId}`);
 
-    const profile = await this.getProfileByUserId(userId);
+    const profile = await this.getOrCreateProfile(userId);
     return profile.socialLinks || [];
   }
 
@@ -243,7 +243,7 @@ export class ProfilesService {
   async removeSocialLink(userId: string, socialLinkId: string): Promise<void> {
     this.logger.log(`Removing social link ${socialLinkId} for user: ${userId}`);
 
-    const profile = await this.getProfileByUserId(userId);
+    const profile = await this.getOrCreateProfile(userId);
 
     const result = await this.socialLinkRepository.delete({
       id: socialLinkId,
@@ -293,7 +293,7 @@ export class ProfilesService {
   async getProfileResponseByUserId(
     userId: string,
   ): Promise<ProfileResponseDto> {
-    const profile = await this.getProfileByUserId(userId);
+    const profile = await this.getOrCreateProfile(userId);
     return this.transformToProfileResponse(profile);
   }
 
