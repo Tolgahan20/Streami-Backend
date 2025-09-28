@@ -13,6 +13,7 @@ import { User } from './features/users/entities/user.entity';
 import { EmailVerificationToken } from './features/tokens/entities/email-verification-token.entity';
 import { RefreshToken } from './features/tokens/entities/refresh-token.entity';
 import { AuthFeatureModule } from './features/auth/auth.module';
+import { ProfilesModule } from './features/profiles/profiles.module';
 import { TokensCleanupJob } from './features/tokens/tokens.cleanup';
 import { MailerModule } from './shared/mailer/mailer.module';
 import { FirebaseModule } from './shared/firebase/firebase.module';
@@ -28,6 +29,7 @@ import { FirebaseModule } from './shared/firebase/firebase.module';
     MailerModule,
     FirebaseModule,
     AuthFeatureModule,
+    ProfilesModule,
   ],
   controllers: [AppController],
   providers: [

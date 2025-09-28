@@ -24,7 +24,10 @@ export class User {
   passwordHash?: string;
 
   @Column({ type: 'text', nullable: true })
-  displayName?: string;
+  firstName?: string;
+
+  @Column({ type: 'text', nullable: true })
+  lastName?: string;
 
   @Column({ type: 'boolean', default: false })
   isEmailVerified!: boolean;

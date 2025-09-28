@@ -11,10 +11,18 @@ export class GoogleAuthDto {
   idToken!: string;
 
   @ApiProperty({
-    description: 'User display name from Google account',
-    example: 'John Doe',
+    description: 'User first name from Google account',
+    example: 'John',
   })
   @IsString()
   @IsNotEmpty()
-  displayName!: string;
+  firstName!: string;
+
+  @ApiProperty({
+    description: 'User last name from Google account',
+    example: 'Doe',
+  })
+  @IsString()
+  @IsNotEmpty()
+  lastName!: string;
 }

@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MailerModule } from '../../shared/mailer/mailer.module';
 import { FirebaseModule } from '../../shared/firebase/firebase.module';
+import { ProfilesModule } from '../profiles/profiles.module';
 import { UsersService } from '../users/users.service';
 import { TokensService } from '../tokens/tokens.service';
 import { User } from '../users/entities/user.entity';
@@ -20,6 +21,7 @@ import { JwtAccessStrategy } from './strategies/jwt.strategy';
     JwtModule.register({}),
     MailerModule,
     FirebaseModule,
+    ProfilesModule,
   ],
   controllers: [AuthController],
   providers: [UsersService, TokensService, AuthService, JwtAccessStrategy],

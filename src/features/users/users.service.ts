@@ -101,4 +101,28 @@ export class UsersService {
     await this.usersRepo.update({ id: userId }, { username });
     this.logger.log(`Username updated for user: ${userId}`);
   }
+
+  async updateUser(userId: string, updateData: Partial<User>): Promise<User> {
+    this.logger.log(`Updating user: ${userId}`, updateData);
+
+    // Remove undefined values
+    const cleanUpdateData = Object.fromEntries(
+      Object.entries(updateData).filter(([, value]) => value !== undefined),
+    );
+
+    if (Object.keys(cleanUpdateData).length === 0) {
+      this.logger.log(`No fields to update for user: ${userId}`);
+      return this.findById(userId) as Promise<User>;
+    }
+
+    await this.usersRepo.update({ id: userId }, cleanUpdateData);
+    this.logger.log(`User updated successfully: ${userId}`);
+
+    const updatedUser = await this.findById(userId);
+    if (!updatedUser) {
+      throw new Error(`User not found after update: ${userId}`);
+    }
+
+    return updatedUser;
+  }
 }

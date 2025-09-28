@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
 import { TokensService } from '../tokens/tokens.service';
+import { ProfilesService } from '../profiles/profiles.service';
 import { generateRandomToken, sha256Hex } from '../../shared/utils/crypto.util';
 import { MailerService } from '../../shared/mailer/mailer.service';
 import { FirebaseService } from '../../shared/firebase/firebase.service';
@@ -19,6 +20,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly tokensService: TokensService,
+    private readonly profilesService: ProfilesService,
     private readonly jwtService: JwtService,
     private readonly mailer: MailerService,
     private readonly firebaseService: FirebaseService,
@@ -28,7 +30,8 @@ export class AuthService {
     email: string;
     username: string;
     password: string;
-    displayName?: string;
+    firstName?: string;
+    lastName?: string;
   }) {
     try {
       this.logger.log(
@@ -60,7 +63,8 @@ export class AuthService {
         email: input.email,
         username: input.username,
         passwordHash,
-        displayName: input.displayName,
+        firstName: input.firstName,
+        lastName: input.lastName,
         loginType: 'EMAIL' as const,
       };
       this.logger.log(`User data to create:`, userData);
@@ -165,7 +169,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
       },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '15m' },
+      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
     );
     const rawRefresh = generateRandomToken(48);
     const tokenHash = sha256Hex(rawRefresh + process.env.REFRESH_TOKEN_PEPPER);
@@ -183,13 +187,14 @@ export class AuthService {
 
   async googleAuth(params: {
     idToken: string;
-    displayName: string;
+    firstName: string;
+    lastName: string;
     userAgent?: string;
     ipAddress?: string;
   }) {
     try {
       this.logger.log(
-        `Starting Google authentication for displayName: ${params.displayName}`,
+        `Starting Google authentication for firstName: ${params.firstName}, lastName: ${params.lastName}`,
       );
       this.logger.log(`ID token length: ${params.idToken.length}`);
 
@@ -224,8 +229,14 @@ export class AuthService {
           user.googleId = decodedToken.uid;
           user.loginType = 'GOOGLE';
           user.isEmailVerified = true; // Google accounts are pre-verified
-          user.displayName =
-            params.displayName || user.displayName || decodedToken.name;
+          user.firstName =
+            params.firstName ||
+            user.firstName ||
+            decodedToken.name?.split(' ')[0];
+          user.lastName =
+            params.lastName ||
+            user.lastName ||
+            decodedToken.name?.split(' ').slice(1).join(' ');
           await this.usersService.updateLastLogin(user.id);
           this.logger.log(
             `Updated existing user ${user.id} to use Google login`,
@@ -236,7 +247,10 @@ export class AuthService {
           const userData = {
             email: decodedToken.email!,
             googleId: decodedToken.uid,
-            displayName: params.displayName || decodedToken.name,
+            firstName: params.firstName || decodedToken.name?.split(' ')[0],
+            lastName:
+              params.lastName ||
+              decodedToken.name?.split(' ').slice(1).join(' '),
             loginType: 'GOOGLE' as const,
             isEmailVerified: true, // Google accounts are pre-verified
           };
@@ -247,11 +261,17 @@ export class AuthService {
             `New Google user created successfully with ID: ${user.id}`,
           );
         }
+
+        // Update or create profile with Google profile picture
+        await this.updateProfileWithGoogleAvatar(user.id, decodedToken.picture);
       } else {
         this.logger.log(`Found existing user by Google ID: ${user.id}`);
         // Update last login for existing user
         await this.usersService.updateLastLogin(user.id);
         this.logger.log(`Updated last login for existing user: ${user.id}`);
+
+        // Update profile with latest Google profile picture
+        await this.updateProfileWithGoogleAvatar(user.id, decodedToken.picture);
       }
 
       // Generate JWT tokens
@@ -263,7 +283,7 @@ export class AuthService {
           username: user.username,
           role: user.role,
         },
-        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '15m' },
+        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
       );
 
       const rawRefresh = generateRandomToken(48);
@@ -320,7 +340,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
       },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '15m' },
+      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
     );
     return { accessToken, refreshToken: newRaw };
   }
@@ -361,5 +381,39 @@ export class AuthService {
     // Update the user's username
     await this.usersService.updateUsername(userId, username);
     this.logger.log(`Username set successfully for user: ${userId}`);
+  }
+
+  /**
+   * Update user profile with Google profile picture
+   */
+  private async updateProfileWithGoogleAvatar(
+    userId: string,
+    googlePictureUrl?: string,
+  ): Promise<void> {
+    if (!googlePictureUrl) {
+      this.logger.log(
+        `No Google profile picture available for user: ${userId}`,
+      );
+      return;
+    }
+
+    try {
+      this.logger.log(
+        `Updating profile avatar for user: ${userId} with Google picture`,
+      );
+
+      // Get or create profile and update avatar
+      await this.profilesService.updateAvatar(userId, googlePictureUrl);
+
+      this.logger.log(
+        `Successfully updated profile avatar for user: ${userId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to update profile avatar for user: ${userId}`,
+        error,
+      );
+      // Don't throw error here as it shouldn't break the login flow
+    }
   }
 }

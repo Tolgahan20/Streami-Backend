@@ -36,23 +36,38 @@ const REFRESH_COOKIE = 'rt';
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'none' as const,
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+    | 'none'
+    | 'lax',
   path: '/',
+  domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
   maxAge: 1000 * 60 * 60 * 24 * 30,
 };
 const ACCESS_COOKIE = 'at';
 const ACCESS_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'none' as const,
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+    | 'none'
+    | 'lax',
   path: '/',
-  maxAge: 1000 * 60 * 15,
+  domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
+  maxAge: 1000 * 60 * 60, // 1 hour to match JWT expiration
 };
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {
+    console.log('🔧 AuthController initialized');
+  }
+
+  @Get('test')
+  @ApiOperation({ summary: 'Test endpoint' })
+  test() {
+    console.log('🧪 Test endpoint called!');
+    return { message: 'Auth controller is working!' };
+  }
 
   @Get('check-username')
   @ApiOperation({ summary: 'Check if username is available' })
@@ -101,7 +116,8 @@ export class AuthController {
       email: dto.email.toLowerCase(),
       username: dto.username.toLowerCase(),
       password: dto.password,
-      displayName: dto.displayName,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
     });
     return { message: 'verification_email_sent' };
   }
@@ -175,7 +191,8 @@ export class AuthController {
           properties: {
             id: { type: 'string', format: 'uuid' },
             email: { type: 'string', format: 'email' },
-            displayName: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
             isEmailVerified: { type: 'boolean' },
           },
         },
@@ -208,7 +225,8 @@ export class AuthController {
         id: user.id,
         email: user.email,
         username: user.username,
-        displayName: user.displayName,
+        firstName: user.firstName,
+        lastName: user.lastName,
         isEmailVerified: user.isEmailVerified,
       },
     };
@@ -233,7 +251,8 @@ export class AuthController {
           properties: {
             id: { type: 'string', format: 'uuid' },
             email: { type: 'string', format: 'email' },
-            displayName: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
             isEmailVerified: { type: 'boolean' },
             loginType: { type: 'string', enum: ['EMAIL', 'GOOGLE'] },
           },
@@ -251,28 +270,46 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     console.log('🔥 Google auth endpoint called!');
+    console.log('🔥 Request method:', req.method);
+    console.log('🔥 Request URL:', req.url);
     console.log('🔥 Request body:', dto);
     console.log('🔥 User agent:', req.headers['user-agent']);
+    console.log('🔥 Request headers:', req.headers);
+    console.log('🔥 Request cookies:', req.cookies);
+    console.log('🔥 Response object:', !!res);
 
     const { accessToken, refreshToken, user } =
       await this.authService.googleAuth({
         idToken: dto.idToken,
-        displayName: dto.displayName,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
         userAgent: req.headers['user-agent'] || undefined,
         ipAddress:
           (req.headers['x-forwarded-for'] as string) ||
           req.socket.remoteAddress ||
           undefined,
       });
+
+    console.log('🍪 Setting cookies:', {
+      refreshCookie: REFRESH_COOKIE,
+      accessCookie: ACCESS_COOKIE,
+      refreshOptions: REFRESH_COOKIE_OPTIONS,
+      accessOptions: ACCESS_COOKIE_OPTIONS,
+    });
+
     res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
     res.cookie(ACCESS_COOKIE, accessToken, ACCESS_COOKIE_OPTIONS);
+
+    console.log('🍪 Cookies set successfully');
+    console.log('🍪 Response headers after setting cookies:', res.getHeaders());
     return {
       accessToken,
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
-        displayName: user.displayName,
+        firstName: user.firstName,
+        lastName: user.lastName,
         isEmailVerified: user.isEmailVerified,
         loginType: user.loginType,
         requiresUsername: !user.username, // Flag to indicate if user needs to set username

@@ -8,6 +8,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('v1');
 
+  // Add request logging middleware
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/v1/auth/')) {
+      console.log('🌐 Auth request:', req.method, req.url, req.headers.origin);
+    }
+    next();
+  });
+
   // CORS configuration for cookie-based auth
   const allowedOrigins =
     process.env.NODE_ENV === 'production'
@@ -19,6 +27,7 @@ async function bootstrap() {
         ].filter(Boolean)
       : [
           'http://localhost:3000',
+          'http://localhost:3001',
           'http://localhost:5173',
           'http://localhost:3001',
           'http://localhost:8080',
@@ -26,7 +35,7 @@ async function bootstrap() {
         ];
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: allowedOrigins.filter(Boolean) as string[],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
